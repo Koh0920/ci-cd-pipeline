@@ -14,9 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Node.js environment
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 16
 
@@ -26,14 +26,14 @@ jobs:
     needs: checkout-setup
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Create user code directory and fetch code
         run: |
           mkdir -p temp/user-code
           # ここではシンプルにechoでサンプルコードを生成しています
           echo "console.log('Hello from user code for post ID: ${{ github.event.inputs.postId }}');" > temp/user-code/user.js
       - name: Upload user code artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: user-code
           path: temp/user-code
@@ -44,9 +44,9 @@ jobs:
     needs: fetch-user-code
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download user code artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: user-code
           path: user-code
@@ -55,7 +55,7 @@ jobs:
           # merge-template.sh はユーザーコードを ./user-code として参照する前提です
           ./merge-template.sh
       - name: Upload merged artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: merged-code
           path: build
@@ -66,9 +66,9 @@ jobs:
     needs: merge-template
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download merged artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: merged-code
           path: build
@@ -79,7 +79,7 @@ jobs:
         working-directory: build
         run: npm run build
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: build-artifact
           path: build/dist
@@ -90,9 +90,9 @@ jobs:
     needs: build
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: build-artifact
           path: build-dist
@@ -102,7 +102,7 @@ jobs:
           zip -r ../artifact.zip .
           cd ..
       - name: Upload zip artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-zip
           path: artifact.zip
@@ -113,9 +113,9 @@ jobs:
     needs: zip-artifact
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download zip artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: artifact-zip
           path: .

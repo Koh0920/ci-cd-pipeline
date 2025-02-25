@@ -107,13 +107,12 @@ jobs:
           name: artifact-zip
           path: artifact.zip
 
-  # ジョブ6: Cloudflare KV へのアップロード
   upload-to-kv:
     runs-on: ubuntu-latest
     needs: zip-artifact
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       - name: Download zip artifact
         uses: actions/download-artifact@v4
         with:
@@ -121,7 +120,7 @@ jobs:
           path: .
       - name: Upload artifact.zip to Cloudflare KV
         run: |
-          npx wrangler kv:key put builds/${{ github.event.inputs.postId }}.zip --path=artifact.zip
+          npx wrangler kv:key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=artifact.zip
         env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}

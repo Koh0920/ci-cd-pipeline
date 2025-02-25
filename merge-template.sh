@@ -1,25 +1,25 @@
 #!/bin/bash
 set -e
 
-# 定義：テンプレート、ユーザーコード、出力ディレクトリ
-TEMPLATE_DIR="./template"
+# ディレクトリ定義を実際の場所に合わせる
+TEMPLATE_DIR="./templates/react-vite"
 USER_CODE_DIR="./user-code"
 OUTPUT_DIR="./build"
 
 echo "Starting merge process..."
 
-# 既存の出力ディレクトリがあれば削除
+# 出力ディレクトリが既にあれば削除
 if [ -d "$OUTPUT_DIR" ]; then
   echo "Removing existing output directory: $OUTPUT_DIR"
   rm -rf "$OUTPUT_DIR"
 fi
 
-# テンプレートディレクトリの内容を出力ディレクトリにコピー
+# テンプレートをコピー
 echo "Copying template files..."
 mkdir -p "$OUTPUT_DIR"
 cp -r "$TEMPLATE_DIR"/. "$OUTPUT_DIR"/
 
-# ユーザーコードディレクトリが存在する場合、テンプレートのsrcに上書きコピー
+# ユーザーコードを ./build/src に上書きコピー
 if [ -d "$USER_CODE_DIR" ]; then
   echo "Merging user code into $OUTPUT_DIR/src..."
   cp -r "$USER_CODE_DIR"/* "$OUTPUT_DIR/src/"

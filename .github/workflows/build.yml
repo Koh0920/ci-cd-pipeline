@@ -10,36 +10,46 @@ on:
 jobs:
   build-and-upload:
     runs-on: ubuntu-latest
+
     steps:
+      # 1. リポジトリをチェックアウト
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2. (例) ユーザーコードを配置 (MVP想定: postIdに紐づいたコードを何らかの方法で取得)
       - name: Fetch user code
         run: |
           mkdir -p user-code
-          echo "// User code for post ${{ github.event.inputs.postId }}" > user-code/user.js
+          echo "// example user code for post ${{ github.event.inputs.postId }}" > user-code/user.js
 
+      # 3. テンプレートとユーザーコードをマージ
       - name: Merge template and user code
         run: bash ./merge-template.sh
 
+      # 4. Node.js セットアップ + npmキャッシュ
       - name: Setup Node.js with cache
         uses: actions/setup-node@v3
         with:
           node-version: "16"
           cache: "npm"
+          # package-lock.json を build/下で見つける
+          cache-dependency-path: "build/package-lock.json"
 
+      # 5. 依存インストール & ビルド
       - name: Install dependencies & Build project
         working-directory: build
         run: |
           npm ci --ignore-scripts
           npm run build
 
+      # 6. dist/ を ZIP化
       - name: Create ZIP artifact
         run: |
           cd build/dist
-          zip -r ../../artifact.zip *
+          zip -r ../../artifact.zip .
           cd ../../
 
+      # 7. KV にアップロード
       - name: Upload artifact to Cloudflare KV
         run: |
           npx wrangler kv:key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=artifact.zip

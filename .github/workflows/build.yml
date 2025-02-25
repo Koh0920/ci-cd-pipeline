@@ -6,119 +6,49 @@ on:
       postId:
         description: "User Post ID"
         required: true
-        default: ""
 
 jobs:
-  # ジョブ1: チェックアウト & Node.js 環境セットアップ
-  checkout-setup:
+  build-and-upload:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Setup Node.js environment
-        uses: actions/setup-node@v4
-        with:
-          node-version: 16
 
-  # ジョブ2: ユーザー投稿コードの取得（APIコールのシミュレーション）
-  fetch-user-code:
-    runs-on: ubuntu-latest
-    needs: checkout-setup
     steps:
+      # 1. リポジトリのチェックアウト（1回だけ）
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Create user code directory and fetch code
+
+      # 2. Node.js環境セットアップとnpmキャッシュの活用
+      - name: Setup Node.js with cache
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: "npm"
+
+      # 3. ユーザー投稿コードの取得 (ここではシンプルにシミュレーション)
+      - name: Fetch user code
         run: |
-          mkdir -p temp/user-code
-          # ここではシンプルにechoでサンプルコードを生成しています
-          echo "console.log('Hello from user code for post ID: ${{ github.event.inputs.postId }}');" > temp/user-code/user.js
-      - name: Upload user code artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: user-code
-          path: temp/user-code
+          mkdir -p user-code
+          echo "// User code for post ${{ github.event.inputs.postId }}" > user-code/user.js
 
-  # ジョブ3: テンプレートとユーザー投稿コードの合成
-  merge-template:
-    runs-on: ubuntu-latest
-    needs: fetch-user-code
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Download user code artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: user-code
-          path: user-code
-      - name: Run merge-template.sh to merge template and user code
+      # 4. テンプレートとユーザー投稿コードの合成
+      - name: Merge template and user code
+        run: bash ./merge-template.sh
+
+      # 5. 依存パッケージのインストール & ビルド実行
+      - name: Install dependencies & Build project
         run: |
-          # merge-template.sh はユーザーコードを ./user-code として参照する前提です
-          ./merge-template.sh
-      - name: Upload merged artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: merged-code
-          path: build
+          cd build
+          npm ci --ignore-scripts
+          npm run build
 
-  # ジョブ4: ビルド実行
-  build:
-    runs-on: ubuntu-latest
-    needs: merge-template
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Download merged artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: merged-code
-          path: build
-      - name: Install dependencies (in merged directory)
-        working-directory: build
-        run: npm ci --ignore-scripts
-      - name: Build project
-        working-directory: build
-        run: npm run build
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifact
-          path: build/dist
-
-  # ジョブ5: 成果物のZIP化
-  zip-artifact:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Download build artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-artifact
-          path: build-dist
-      - name: Zip build artifact
+      # 6. ビルド成果物のZIP化
+      - name: Create ZIP artifact
         run: |
-          cd build-dist
-          zip -r ../artifact.zip .
-          cd ..
-      - name: Upload zip artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifact-zip
-          path: artifact.zip
+          cd build/dist
+          zip -r ../../artifact.zip *
+          cd ../../
 
-  upload-to-kv:
-    runs-on: ubuntu-latest
-    needs: zip-artifact
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Download zip artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: artifact-zip
-          path: .
-      - name: Upload artifact.zip to Cloudflare KV
+      # 7. Cloudflare KV へのアップロード
+      - name: Upload artifact to Cloudflare KV
         run: |
           npx wrangler kv:key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=artifact.zip
         env:

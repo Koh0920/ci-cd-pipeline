@@ -5,8 +5,5 @@ account_id = "b7b3c75fd465e3916e7d4af7a92b713d"
 workers_dev = true
 
 kv_namespaces = [
-  {
-      binding = "CODEUS_BUILD_KV_DEV",
-      id = "78602aca204c4ffda20e42a65a60a44f",
-  },
+  { binding = "CODEUS_BUILD_KV_DEV", id = "78602aca204c4ffda20e42a65a60a44f" }
 ]

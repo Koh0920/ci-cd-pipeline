@@ -16,7 +16,8 @@ fi
 
 # テンプレートディレクトリの内容を出力ディレクトリにコピー
 echo "Copying template files..."
-cp -r "$TEMPLATE_DIR" "$OUTPUT_DIR"
+mkdir -p "$OUTPUT_DIR"
+cp -r "$TEMPLATE_DIR"/. "$OUTPUT_DIR"/
 
 # ユーザーコードディレクトリが存在する場合、テンプレートのsrcに上書きコピー
 if [ -d "$USER_CODE_DIR" ]; then

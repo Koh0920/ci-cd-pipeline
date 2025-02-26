@@ -34,24 +34,66 @@ jobs:
         working-directory: build
         run: npm ci --ignore-scripts
 
-      # ★重要★ esbuildなどのバイナリを再ビルドして取得する
       - name: Rebuild esbuild
         working-directory: build
         run: npm rebuild esbuild
 
+      # (1) Build step
       - name: Build project
+        id: buildStep
         working-directory: build
         run: npm run build
 
+      # (1a) Mark build success (only if build step succeeded)
+      - name: Mark build success
+        if: ${{ success() && steps.buildStep.outcome == 'success' }}
+        run: |
+          curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/buildStatus" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"success"}'
+
+      # (1b) Mark build error (only if build step failed)
+      - name: Mark build error
+        if: ${{ failure() && steps.buildStep.outcome == 'failure' }}
+        run: |
+          # ここでエラーログを簡易取得する例:
+          ERR_MSG=$(tail -n 50 $GITHUB_WORKSPACE/build/npm-debug.log || echo "No debug log")
+          curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/buildStatus" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"error","errorMessage":"Build failed. Logs: '"$ERR_MSG"'"}'
+
+      # (2) Upload step (only runs if buildStep succeeded)
       - name: Create ZIP artifact
+        id: zipStep
+        if: ${{ steps.buildStep.outcome == 'success' }}
         run: |
           cd build/dist
           zip -r ../../artifact.zip .
           cd ../../
 
       - name: Upload artifact to Cloudflare KV
+        id: uploadStep
+        if: ${{ steps.zipStep.outcome == 'success' }}
         run: |
           npx wrangler kv:key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=artifact.zip
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+
+      # (2a) Mark upload success
+      - name: Mark upload success
+        if: ${{ success() && steps.uploadStep.outcome == 'success' }}
+        run: |
+          curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/uploadStatus" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"success"}'
+
+      # (2b) Mark upload error
+      - name: Mark upload error
+        if: ${{ failure() && steps.uploadStep.outcome == 'failure' }}
+        run: |
+          # 同様にログを取得するなど
+          ERR_MSG="Upload step failed"
+          curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/uploadStatus" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"error","errorMessage":"'"$ERR_MSG"'"}'

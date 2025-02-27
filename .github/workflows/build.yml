@@ -44,25 +44,26 @@ jobs:
         working-directory: build
         run: npm run build
 
-      # (1a) Mark build success (only if build step succeeded)
+      # (1a) Mark build success
       - name: Mark build success
         if: ${{ success() && steps.buildStep.outcome == 'success' }}
         run: |
+          # ※ secrets.API_WORKER_URL に "my-worker.domain.com" を入れている場合
+          #  => "https://${{ secrets.API_WORKER_URL }}/posts/..."
           curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/buildStatus" \
             -H "Content-Type: application/json" \
             -d '{"status":"success"}'
 
-      # (1b) Mark build error (only if build step failed)
+      # (1b) Mark build error
       - name: Mark build error
         if: ${{ failure() && steps.buildStep.outcome == 'failure' }}
         run: |
-          # ここでエラーログを簡易取得する例:
           ERR_MSG=$(tail -n 50 $GITHUB_WORKSPACE/build/npm-debug.log || echo "No debug log")
           curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/buildStatus" \
             -H "Content-Type: application/json" \
-            -d '{"status":"error","errorMessage":"Build failed. Logs: '"$ERR_MSG"'"}'
+            -d '{"status":"error","errorMessage":"Build failed: '"$ERR_MSG"'"}'
 
-      # (2) Upload step (only runs if buildStep succeeded)
+      # (2) Upload step (only if buildStep success)
       - name: Create ZIP artifact
         id: zipStep
         if: ${{ steps.buildStep.outcome == 'success' }}
@@ -92,7 +93,6 @@ jobs:
       - name: Mark upload error
         if: ${{ failure() && steps.uploadStep.outcome == 'failure' }}
         run: |
-          # 同様にログを取得するなど
           ERR_MSG="Upload step failed"
           curl -X POST "https://${{ secrets.API_WORKER_URL }}/posts/${{ github.event.inputs.postId }}/uploadStatus" \
             -H "Content-Type: application/json" \

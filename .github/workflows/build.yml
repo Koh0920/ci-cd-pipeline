@@ -203,7 +203,7 @@ jobs:
         if: ${{ steps.zipStep.outcome == 'success' }} # Depends on successful zip creation
         run: |
           echo "Uploading artifact to KV..."
-          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=./artifact.zip
+          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=./artifact.zip --remote
           echo "Upload command executed."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}

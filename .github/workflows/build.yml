@@ -214,7 +214,7 @@ jobs:
           # Use --path to upload the file directly and --namespace-id
           # The --remote flag is implied when using --namespace-id
           # Namespace ID for CODEUS_BUILD_KV_DEV is 78602aca204c4ffda20e42a65a60a44f
-          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --path=./artifact.zip --namespace-id=78602aca204c4ffda20e42a65a60a44f
+          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --path=./artifact.zip --namespace-id=78602aca204c4ffda20e42a65a60a44f --remote
           echo "Upload command executed."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}

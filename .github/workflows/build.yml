@@ -92,14 +92,16 @@ jobs:
               ERROR_MSG=$(tail -n 50 $GITHUB_WORKSPACE/build/build_output.log || echo "Build log not available")
             fi
           fi
-          JSON_PAYLOAD=$(jq -n --arg step "build" --arg status "$STATUS" --arg msg "$ERROR_MSG" \
-            '{step: $step, status: $status, message: $msg}')
+          # URL encode the error message if it exists
+          ENCODED_ERROR_MSG=$(echo "$ERROR_MSG" | jq -sRr @uri)
+          API_URL="https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status?status=$STATUS"
+          if [ -n "$ERROR_MSG" ]; then
+            API_URL="${API_URL}&errorMessage=${ENCODED_ERROR_MSG}"
+          fi
           echo "Reporting build status: $STATUS"
           # Allow skipping without failing the workflow if status is 'skipped'
-          curl --fail -X POST "https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status" \
+          curl --fail -X POST "$API_URL" \
             -H "Authorization: Bearer ${{ secrets.CI_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
             -o api_response.txt \
             || { \
               echo "ERROR: Failed to report build status to API. Response:" >&2; \
@@ -142,13 +144,12 @@ jobs:
             || { \
               # Report size error to API
               ERROR_MSG=$(bash ./scripts/size-check.sh "$SOURCE_DIR" "$MAX_SIZE_BYTES" 2>&1 | tail -n 5); \
-              JSON_PAYLOAD=$(jq -n --arg step "validation" --arg status "error" --arg msg "Artifact size error: $ERROR_MSG" \
-                '{step: $step, status: $status, message: $msg}'); \
+              # URL encode the error message
+              ENCODED_ERROR_MSG=$(echo "Artifact size error: $ERROR_MSG" | jq -sRr @uri); \
+              API_URL="https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status?status=error&errorMessage=${ENCODED_ERROR_MSG}"; \
               echo "Reporting size error to API..."; \
-              curl --fail -X POST "https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status" \
+              curl --fail -X POST "$API_URL" \
                 -H "Authorization: Bearer ${{ secrets.CI_TOKEN }}" \
-                -H "Content-Type: application/json" \
-                -d "$JSON_PAYLOAD" \
                 -o api_response.txt \
                 || { echo "WARN: Failed to report size error status to API. Response:" >&2; if [ -f api_response.txt ]; then cat api_response.txt >&2; else echo "(No response body file created or curl failed before writing)"; fi; }; \
               exit 1; \
@@ -221,22 +222,24 @@ jobs:
           UPLOAD_STATUS="error"
           UPLOAD_ERR_MSG="Upload failed."
           # Check the outcome of the upload command execution
-          # If upload step succeeded, mark the final status as 'published'
           if [[ "${{ steps.uploadStep.outcome }}" == "success" ]]; then
-            UPLOAD_STATUS="published" # Use 'published' for final success
+            UPLOAD_STATUS="success"
             UPLOAD_ERR_MSG=""
-          else
-            # Keep error status if upload failed
-            UPLOAD_STATUS="error"
-            UPLOAD_ERR_MSG="Upload step failed." # More specific error message
           fi
-          JSON_PAYLOAD=$(jq -n --arg step "upload" --arg status "$UPLOAD_STATUS" --arg msg "$UPLOAD_ERR_MSG" \
-            '{step: $step, status: $status, message: $msg}') # Keep step as 'upload' for API endpoint logic
-          echo "Reporting upload status: $UPLOAD_STATUS"
-          curl --fail -X POST "https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status" \
+          # URL encode the error message if it exists
+          ENCODED_ERROR_MSG=$(echo "$UPLOAD_ERR_MSG" | jq -sRr @uri)
+          # Send 'success' status for API to convert to 'published'
+          UPLOAD_STATUS_PARAM="success"
+          if [[ "$UPLOAD_STATUS" == "error" ]]; then
+             UPLOAD_STATUS_PARAM="error"
+          fi
+          API_URL="https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status?status=${UPLOAD_STATUS_PARAM}"
+          if [ -n "$UPLOAD_ERR_MSG" ]; then
+            API_URL="${API_URL}&errorMessage=${ENCODED_ERROR_MSG}"
+          fi
+          echo "Reporting upload status: $UPLOAD_STATUS_PARAM (will be 'published' on success)"
+          curl --fail -X POST "$API_URL" \
             -H "Authorization: Bearer ${{ secrets.CI_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
             -o api_response.txt \
             || { \
               echo "ERROR: Failed to report upload status to API. Response:" >&2; \

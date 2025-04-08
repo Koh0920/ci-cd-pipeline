@@ -197,9 +197,9 @@ jobs:
           echo "Zip artifact created at ./artifact.zip"
         shell: bash
 
-      # 8. Upload artifact to Cloudflare KV
+      # 8. Upload Base64 encoded artifact to Cloudflare KV
       - name: Upload artifact to Cloudflare KV
-        id: uploadStep
+        id: uploadStep # Reverted step id
         if: ${{ steps.zipStep.outcome == 'success' }} # Depends on successful zip creation
         run: |
           echo "Base64 encoding artifact.zip..."
@@ -215,11 +215,10 @@ jobs:
           # echo "Base64 encoded size: $(echo -n "$BASE64_ENCODED" | wc -c) bytes"
 
           echo "Uploading Base64 encoded artifact to KV..."
-          # Pipe the Base64 string directly to wrangler kv key put stdin
+          # Provide the Base64 string as the second argument (value) to the command
           # Use --remote flag to target the deployed KV namespace
-          echo -n "$BASE64_ENCODED" | npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --remote
-          # Note: We pipe the value to stdin instead of providing it as a command-line argument
-          # to avoid issues with shell argument length limits for large base64 strings.
+          # WARNING: This might fail for very large files due to shell argument length limits.
+          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip "$BASE64_ENCODED" --binding CODEUS_BUILD_KV_DEV --remote
 
           echo "Upload command executed."
         env:
@@ -234,7 +233,7 @@ jobs:
         run: |
           UPLOAD_STATUS="error"
           UPLOAD_ERR_MSG="Upload failed."
-          # Check the outcome of the upload command execution
+          # Check the outcome of the API upload step
           if [[ "${{ steps.uploadStep.outcome }}" == "success" ]]; then
             UPLOAD_STATUS="success"
             UPLOAD_ERR_MSG=""

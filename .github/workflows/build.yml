@@ -164,9 +164,36 @@ jobs:
         if: ${{ steps.sanitizeCode.outcome == 'success' && steps.determineSource.outputs.source_dir != 'error' && steps.checkSize.outcome == 'success' }}
         run: |
           SOURCE_DIR="${{ steps.determineSource.outputs.source_dir }}"
+          echo "Preparing artifact source directory: $SOURCE_DIR..."
+
+          # --- Rename the first found HTML file to index.html for static types ---
+          if [[ "${{ env.TEMPLATE_TYPE }}" == "html" || "${{ env.TEMPLATE_TYPE }}" == "vanilla" ]]; then
+            # Find the first .html file (case-insensitive) in the source directory, excluding hidden files
+            # Use find + head to get the first match reliably
+            FIRST_HTML_FILE=$(find "$GITHUB_WORKSPACE/$SOURCE_DIR" -maxdepth 1 -type f -iname '*.html' -print -quit)
+
+            if [ -n "$FIRST_HTML_FILE" ]; then
+              # Extract just the filename
+              FIRST_HTML_FILENAME=$(basename "$FIRST_HTML_FILE")
+              if [[ "$FIRST_HTML_FILENAME" != "index.html" ]]; then
+                echo "Renaming '$FIRST_HTML_FILENAME' to index.html for static type."
+                mv "$FIRST_HTML_FILE" "$GITHUB_WORKSPACE/$SOURCE_DIR/index.html"
+              else
+                echo "index.html already exists."
+              fi
+            else
+              echo "Warning: No .html file found in $SOURCE_DIR for static type."
+              # Decide if this should be an error or just a warning
+            fi
+          fi
+          # --- End rename ---
+
           echo "Creating zip artifact from $SOURCE_DIR..."
           # Use absolute path for cd to avoid issues
-          cd "$GITHUB_WORKSPACE/$SOURCE_DIR" && zip -r "$GITHUB_WORKSPACE/artifact.zip" . && cd "$GITHUB_WORKSPACE"
+          # Ensure we are zipping the contents of the directory, not the directory itself
+          cd "$GITHUB_WORKSPACE/$SOURCE_DIR" && zip -r "$GITHUB_WORKSPACE/artifact.zip" ./* && cd "$GITHUB_WORKSPACE"
+          # Note: Using ./* ensures hidden files/dirs at the root are not included directly,
+          # but zip -r should handle subdirectories correctly. If hidden files at root are needed, use '.' instead of './*'.
           echo "Zip artifact created at ./artifact.zip"
         shell: bash
 

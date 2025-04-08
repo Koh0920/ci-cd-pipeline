@@ -197,29 +197,16 @@ jobs:
           echo "Zip artifact created at ./artifact.zip"
         shell: bash
 
-      # 8. Upload Base64 encoded artifact to Cloudflare KV
+      # 8. Upload artifact to Cloudflare KV
       - name: Upload artifact to Cloudflare KV
-        id: uploadStep # Reverted step id
+        id: uploadStep
         if: ${{ steps.zipStep.outcome == 'success' }} # Depends on successful zip creation
         run: |
-          echo "Base64 encoding artifact.zip..."
-          # Use standard base64 command available on ubuntu-latest, -w 0 disables line wrapping
-          BASE64_ENCODED=$(base64 -w 0 ./artifact.zip)
-
-          if [ -z "$BASE64_ENCODED" ]; then
-            echo "Error: Base64 encoding failed."
-            exit 1
-          fi
-
-          # Check encoded size (optional, for debugging)
-          # echo "Base64 encoded size: $(echo -n "$BASE64_ENCODED" | wc -c) bytes"
-
-          echo "Uploading Base64 encoded artifact to KV..."
-          # Provide the Base64 string as the second argument (value) to the command
-          # Use --remote flag to target the deployed KV namespace
-          # WARNING: This might fail for very large files due to shell argument length limits.
-          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip "$BASE64_ENCODED" --binding CODEUS_BUILD_KV_DEV --remote
-
+          echo "Uploading artifact to KV using namespace ID..."
+          # Use --path to upload the file directly and --namespace-id
+          # The --remote flag is implied when using --namespace-id
+          # Namespace ID for CODEUS_BUILD_KV_DEV is 78602aca204c4ffda20e42a65a60a44f
+          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --path=./artifact.zip --namespace-id=78602aca204c4ffda20e42a65a60a44f
           echo "Upload command executed."
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -233,7 +220,7 @@ jobs:
         run: |
           UPLOAD_STATUS="error"
           UPLOAD_ERR_MSG="Upload failed."
-          # Check the outcome of the API upload step
+          # Check the outcome of the upload command execution
           if [[ "${{ steps.uploadStep.outcome }}" == "success" ]]; then
             UPLOAD_STATUS="success"
             UPLOAD_ERR_MSG=""

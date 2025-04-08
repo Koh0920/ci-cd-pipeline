@@ -197,14 +197,6 @@ jobs:
           echo "Zip artifact created at ./artifact.zip"
         shell: bash
 
-      # 8a. Check Wrangler authentication
-      - name: Check Wrangler authentication
-        if: ${{ steps.zipStep.outcome == 'success' }} # Run if zip was created
-        run: npx wrangler whoami
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          # ACCOUNT_ID is not strictly needed for whoami but good practice
-
       # 8b. Upload artifact to Cloudflare KV
       - name: Upload artifact to Cloudflare KV
         id: uploadStep

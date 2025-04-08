@@ -221,12 +221,17 @@ jobs:
           UPLOAD_STATUS="error"
           UPLOAD_ERR_MSG="Upload failed."
           # Check the outcome of the upload command execution
+          # If upload step succeeded, mark the final status as 'published'
           if [[ "${{ steps.uploadStep.outcome }}" == "success" ]]; then
-            UPLOAD_STATUS="success"
+            UPLOAD_STATUS="published" # Use 'published' for final success
             UPLOAD_ERR_MSG=""
+          else
+            # Keep error status if upload failed
+            UPLOAD_STATUS="error"
+            UPLOAD_ERR_MSG="Upload step failed." # More specific error message
           fi
           JSON_PAYLOAD=$(jq -n --arg step "upload" --arg status "$UPLOAD_STATUS" --arg msg "$UPLOAD_ERR_MSG" \
-            '{step: $step, status: $status, message: $msg}')
+            '{step: $step, status: $status, message: $msg}') # Keep step as 'upload' for API endpoint logic
           echo "Reporting upload status: $UPLOAD_STATUS"
           curl --fail -X POST "https://${{ secrets.API_WORKER_URL }}/ci/builds/${{ github.event.inputs.postId }}/status" \
             -H "Authorization: Bearer ${{ secrets.CI_TOKEN }}" \

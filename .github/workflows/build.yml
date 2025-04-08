@@ -103,7 +103,7 @@ jobs:
             -o api_response.txt \
             || { \
               echo "ERROR: Failed to report build status to API. Response:" >&2; \
-              cat api_response.txt >&2; \
+              if [ -f api_response.txt ]; then cat api_response.txt >&2; else echo "(No response body file created or curl failed before writing)"; fi; \
               [[ "$STATUS" == "skipped" ]] || exit 1; \
             }
 
@@ -150,7 +150,7 @@ jobs:
                 -H "Content-Type: application/json" \
                 -d "$JSON_PAYLOAD" \
                 -o api_response.txt \
-                || { echo "WARN: Failed to report size error status to API. Response:" >&2; cat api_response.txt >&2; }; \
+                || { echo "WARN: Failed to report size error status to API. Response:" >&2; if [ -f api_response.txt ]; then cat api_response.txt >&2; else echo "(No response body file created or curl failed before writing)"; fi; }; \
               exit 1; \
             }
 
@@ -205,6 +205,6 @@ jobs:
             -o api_response.txt \
             || { \
               echo "ERROR: Failed to report upload status to API. Response:" >&2; \
-              cat api_response.txt >&2; \
+              if [ -f api_response.txt ]; then cat api_response.txt >&2; else echo "(No response body file created or curl failed before writing)"; fi; \
               exit 1; \
             }

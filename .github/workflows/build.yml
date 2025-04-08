@@ -197,17 +197,49 @@ jobs:
           echo "Zip artifact created at ./artifact.zip"
         shell: bash
 
-      # 8. Upload artifact to Cloudflare KV
-      - name: Upload artifact to Cloudflare KV
-        id: uploadStep
+      # 8. Upload Base64 Artifact via API
+      - name: Upload Base64 Artifact via API
+        id: uploadApiStep # Changed step id
         if: ${{ steps.zipStep.outcome == 'success' }} # Depends on successful zip creation
         run: |
-          echo "Uploading artifact to KV..."
-          npx wrangler kv key put builds/${{ github.event.inputs.postId }}.zip --binding CODEUS_BUILD_KV_DEV --path=./artifact.zip --remote
-          echo "Upload command executed."
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+          echo "Base64 encoding artifact.zip..."
+          # Use standard base64 command available on ubuntu-latest, -w 0 disables line wrapping
+          BASE64_ENCODED=$(base64 -w 0 ./artifact.zip)
+
+          if [ -z "$BASE64_ENCODED" ]; then
+            echo "Error: Base64 encoding failed."
+            exit 1
+          fi
+
+          echo "Preparing JSON payload..."
+          # Use jq to create the JSON payload safely, escaping the base64 string
+          JSON_PAYLOAD=$(jq -n --arg postId "${{ github.event.inputs.postId }}" --arg artifact "$BASE64_ENCODED" \
+            '{postId: $postId, artifactZipBase64: $artifact}')
+
+          # Save payload to a temporary file for --data-binary
+          echo "$JSON_PAYLOAD" > payload.json
+          echo "Payload size: $(wc -c < payload.json) bytes" # Log payload size for debugging
+
+          echo "Uploading artifact via API..."
+          # Use the new API endpoint and POST the JSON payload
+          curl --fail -X POST "https://${{ secrets.API_WORKER_URL }}/v1/builds/upload" \
+            -H "Authorization: Bearer ${{ secrets.CI_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data-binary @payload.json \
+            -o api_upload_response.txt \
+            || { \
+              echo "ERROR: Failed to upload artifact via API. Response:" >&2; \
+              if [ -f api_upload_response.txt ]; then cat api_upload_response.txt >&2; else echo "(No response body file created or curl failed before writing)"; fi; \
+              rm payload.json; \
+              exit 1; \
+            }
+
+          echo "API Upload command executed successfully."
+          # Optionally log the API response for success cases too
+          # echo "API Upload Response:"
+          # cat api_upload_response.txt
+
+          rm payload.json # Clean up temporary file
 
       # 9. Mark upload status API Call
       - name: Mark upload status
@@ -217,8 +249,8 @@ jobs:
         run: |
           UPLOAD_STATUS="error"
           UPLOAD_ERR_MSG="Upload failed."
-          # Check the outcome of the upload command execution
-          if [[ "${{ steps.uploadStep.outcome }}" == "success" ]]; then
+          # Check the outcome of the API upload step
+          if [[ "${{ steps.uploadApiStep.outcome }}" == "success" ]]; then
             UPLOAD_STATUS="success"
             UPLOAD_ERR_MSG=""
           fi

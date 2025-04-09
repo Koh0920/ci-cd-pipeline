@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies
         if: env.TEMPLATE_TYPE == 'react-vite' || env.TEMPLATE_TYPE == 'react-tailwind-vite'
         working-directory: build
-        run: npm ci --ignore-scripts
+        run: npm install --ignore-scripts
 
       - name: Install jq for JSON escaping
         # jq is used for API calls regardless of build type, so always install

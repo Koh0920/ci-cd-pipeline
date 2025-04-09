@@ -84,6 +84,6 @@ fi
 
 echo "Merge process complete. Merged project is ready in: $OUTPUT_DIR"
 
-ls
+ls ./user-code
 
 exit 0

@@ -109,7 +109,6 @@ jobs:
               [[ "$STATUS" == "skipped" ]] || exit 1; \
             }
 
-      # 6. Determine artifact source and check size
       # 6. Determine artifact source directory
       - name: Determine artifact source directory
         id: determineSource

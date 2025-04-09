@@ -74,7 +74,7 @@ jobs:
         id: buildStep
         if: env.TEMPLATE_TYPE == 'react-vite' || env.TEMPLATE_TYPE == 'react-tailwind-vite'
         working-directory: build
-        run: npm run build > build_output.log 2>&1 || true # Capture output
+        run: npm run build > build_output.log 2>&1 # Capture output, fail on error
 
       # --- Status Reporting and Size Check ---
 

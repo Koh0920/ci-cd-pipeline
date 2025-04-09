@@ -41,8 +41,8 @@ echo "Creating output directory: $OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 
 # テンプレートをコピー (-a はアーカイブモード: パーミッション、タイムスタンプ保持)
-echo "Copying template files from $TEMPLATE_DIR to $OUTPUT_DIR..."
-cp -a "$TEMPLATE_DIR"/. "$OUTPUT_DIR"/
+# echo "Copying template files from $TEMPLATE_DIR to $OUTPUT_DIR..."
+# cp -a "$TEMPLATE_DIR"/. "$OUTPUT_DIR"/
 
 # ユーザーコードディレクトリが存在する場合のみマージ
 if [ -d "$USER_CODE_DIR" ]; then
@@ -51,7 +51,7 @@ if [ -d "$USER_CODE_DIR" ]; then
   case "$TEMPLATE_TYPE" in
     "react-vite" | "react-tailwind-vite")
       # React系テンプレートは src ディレクトリにマージ
-      MERGE_TARGET_DIR="${OUTPUT_DIR}/src"
+      MERGE_TARGET_DIR="${OUTPUT_DIR}"
       if [ ! -d "$MERGE_TARGET_DIR" ]; then
         echo "Warning: Merge target directory '$MERGE_TARGET_DIR' does not exist in the template. Creating it."
         mkdir -p "$MERGE_TARGET_DIR"
@@ -84,6 +84,6 @@ fi
 
 echo "Merge process complete. Merged project is ready in: $OUTPUT_DIR"
 
-ls -R ./user-code
+ls -R ./build
 
 exit 0

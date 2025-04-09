@@ -83,4 +83,7 @@ else
 fi
 
 echo "Merge process complete. Merged project is ready in: $OUTPUT_DIR"
+
+ls
+
 exit 0
